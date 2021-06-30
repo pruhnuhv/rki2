@@ -73,6 +73,11 @@ OBJS += dhrystone_cmd.o
 OBJS += whetstone_cmd.o
 OBJS += benchmarks.o
 
+#
+# Target specific commands
+#
+OBJS += gpio_cmd.o
+
 ##
 ## Libraries to link in
 ##

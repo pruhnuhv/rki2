@@ -59,6 +59,7 @@ LINKSCRIPT       = linkcmds
 OBJS = rki_init.o rki_shell_cmds.o rki_dl_cmds.o filesys.o deps.o
 OBJS += target_shell_cmds.o
 
+
 ##
 ## Optional objects in src directory
 ##
@@ -72,6 +73,12 @@ OBJS += hello_cmd.o
 OBJS += dhrystone_cmd.o
 OBJS += whetstone_cmd.o
 OBJS += benchmarks.o
+
+#
+# Target Specific Commands
+#
+
+OBJS += gpio_cmd.o
 
 ##
 ## Libraries to link in
