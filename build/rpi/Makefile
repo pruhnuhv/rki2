@@ -79,6 +79,7 @@ OBJS += benchmarks.o
 #
 
 OBJS += gpio_cmd.o
+OBJS += gpio_irq_cmd.o
 
 ##
 ## Libraries to link in

@@ -26,6 +26,8 @@ int  init_gpio_cmd( int argc, char *argv[]);
 int  toggle_gpio_on_cmd( int argc, char *argv[]);
 int  toggle_gpio_off_cmd( int argc, char *argv[]);
 int  release_gpio_cmd( int argc, char *argv[]);
+int  irq_test_cmd( int argc, char *argv[]);
+int  handle_irq(int *arg);
 
 /*
 ** function to start the shell and add new commands.
@@ -38,4 +40,5 @@ void rki_add_target_cmds(void)
    rtems_shell_add_cmd("gpon"     ,"misc","Turn GPIO Pin On",toggle_gpio_on_cmd);
    rtems_shell_add_cmd("gpoff"    ,"misc","Turn GPIO Pin Off",toggle_gpio_off_cmd);
    rtems_shell_add_cmd("gprelease","misc","Release GPIO Pin",release_gpio_cmd);
+   rtems_shell_add_cmd("gpirq","misc","Test IRQ driven GPIO",irq_test_cmd);
 }
