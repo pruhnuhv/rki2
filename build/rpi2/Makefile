@@ -77,7 +77,9 @@ OBJS += benchmarks.o
 # Target specific commands
 #
 OBJS += gpio_cmd.o
+OBJS += bmp280_cmd.o
 OBJS += gpio_irq_cmd.o
+OBJS += BMP280.o
 
 ##
 ## Libraries to link in
@@ -139,6 +141,7 @@ RTEMS_SYMS = rtems-syms
 VPATH := ./config
 VPATH += ../../src
 VPATH += ./src
+VPATH += ./src/drivers
 ###############################################################################################
 ##
 ## Build Targets
