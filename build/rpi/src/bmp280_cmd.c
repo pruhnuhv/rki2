@@ -61,7 +61,7 @@ int BMP280_test_cmd(int argc, char* argv[])
   }
   else
   {
-    printf("Whoami Main Loop Successful");
+    printf("Whoami Main Loop Successful\n");
   }
   
   rv = ioctl(fd, BMP280_read_Temperature, (void *)&Temperature);

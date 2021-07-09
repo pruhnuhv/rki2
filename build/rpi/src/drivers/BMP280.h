@@ -59,4 +59,4 @@ typedef enum
 
 int i2c_dev_register_BMP280(const char* bus_path,
                             const char* dev_path,
-                            uint16_t address);
+                            uint32_t address);
