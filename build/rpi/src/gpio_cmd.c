@@ -27,8 +27,7 @@ int test_gpio_cmd(int argc, char *argv[])
 
   printf("Calling rtems_gpio_request_pin function for the ACT_LED\n");
  
-  /*
-   * This Fails
+  
   sc = rtems_gpio_request_pin(
     ACT_LED, DIGITAL_OUTPUT, false, false, NULL);
   if (sc != RTEMS_SUCCESSFUL )
@@ -36,7 +35,7 @@ int test_gpio_cmd(int argc, char *argv[])
      printf("Failed to request ACT_LED\n");
      return(sc);
   }
-  */
+  
   
   printf("Calling rtems_gpio_request_pin for the Breadboard LED at GPIO 22\n");
   sc = rtems_gpio_request_pin(
@@ -56,7 +55,7 @@ int test_gpio_cmd(int argc, char *argv[])
      return(sc);
   }
   
-
+/*
   for(i=0; i<2; i++)
   {
     rtems_gpio_set(led22);
@@ -69,7 +68,7 @@ int test_gpio_cmd(int argc, char *argv[])
     rtems_gpio_clear(led3);
     delay_sec(2);
   }
-
+*/
   printf("Calling rtems_gpio_request_pin for the Breadboard Switch at GPIO 20\n");
   sc = rtems_gpio_request_pin(
     sw20, DIGITAL_INPUT, false, false, NULL);
@@ -87,21 +86,35 @@ int test_gpio_cmd(int argc, char *argv[])
   printf("Press the switch\n");
   while (1){
     val = rtems_gpio_get_value(sw20);
-    if (val == 0){
+    if (val == 0) {
       sc = rtems_gpio_set(led22);
+      assert(sc == RTEMS_SUCCESSFUL);
+      sc = rtems_gpio_set(led3);
+      assert(sc == RTEMS_SUCCESSFUL);
+      sc = rtems_gpio_clear(ACT_LED);
       assert(sc == RTEMS_SUCCESSFUL);
       printf("Switch Pressed, LED will light up for 5 seconds before Test ends\n");
       delay_sec(5);
       break;
     }
-    else{
+    else {
       sc = rtems_gpio_clear(led22);
+      assert(sc == RTEMS_SUCCESSFUL);
+      sc = rtems_gpio_clear(led3);
+      assert(sc == RTEMS_SUCCESSFUL);
+      sc = rtems_gpio_set(ACT_LED);
       assert(sc == RTEMS_SUCCESSFUL);
     }
   }
 
-
-  /*
+  rtems_gpio_clear(led22);
+  rtems_gpio_clear(led3);
+  rtems_gpio_set(ACT_LED);
+  rtems_gpio_release_pin(led22);
+  rtems_gpio_release_pin(led3);
+  rtems_gpio_release_pin(sw20);
+  rtems_gpio_release_pin(ACT_LED);
+  
   for (i=0; i<54; i++){
     // Rpi has 0-53 GPIOs available, although only 17 are physically available via the GPIO Headers (Including the UART Alt pins 14, 15) 
     if (i<=13 || i>=16){
@@ -109,21 +122,18 @@ int test_gpio_cmd(int argc, char *argv[])
       sc = rtems_gpio_request_pin(i, DIGITAL_OUTPUT, false, false, NULL);
       if(sc != RTEMS_SUCCESSFUL) printf("GPIO Output failed for pin %d\n", i);
       rtems_gpio_release_pin(i);
-      
-      sc = rtems_gpio_request_pin(i, DIGITAL_INPUT, false, false, NULL);
-      if(sc != RTEMS_SUCCESSFUL) printf("GPIO Input failed for pin %d\n", i);
-      rtems_gpio_release_pin(i);
+     
+      /* If we try to init GPIO 47 as INPUT, we can't use it anymore until ReBoot */
+      //sc = rtems_gpio_request_pin(i, DIGITAL_INPUT, false, false, NULL);
+      //if(sc != RTEMS_SUCCESSFUL) printf("GPIO Input failed for pin %d\n", i);
+      //rtems_gpio_release_pin(i);
     
     }
     printf("GPIO Test Done for %d\n\n",i);
   }
-  */
-
-  rtems_gpio_clear(led22);
-  rtems_gpio_release_pin(led22);
-  rtems_gpio_release_pin(led3);
-  rtems_gpio_release_pin(sw20);
+  
   printf("GPIO Test Completed\n");
+  
   return(0);
 }
 
@@ -149,6 +159,24 @@ int init_gpio_cmd(int argc, char *argv[])
      printf("Failed to request GPIO 22\n");
      return(sc);
   }
+  
+  printf("Calling rtems_gpio_request_pin function 47\n");
+  sc = rtems_gpio_request_pin(
+    47, DIGITAL_OUTPUT, false, false, NULL);
+  if (sc != RTEMS_SUCCESSFUL )
+  {
+     printf("Failed to request GPIO 47\n");
+     return(sc);
+  }
+
+  printf("Calling rtems_gpio_request_pin function 3\n");
+  sc = rtems_gpio_request_pin(
+    3, DIGITAL_OUTPUT, false, false, NULL);
+  if (sc != RTEMS_SUCCESSFUL )
+  {
+     printf("Failed to request GPIO 3\n");
+     return(sc);
+  }
   return(0);
 }
 
@@ -159,6 +187,10 @@ int toggle_gpio_on_cmd( int argc, char *argv[])
 {
   printf("Toggle GPIO 22 on\n");
   rtems_gpio_set(22);
+  printf("Toggle GPIO 47 on\n");
+  rtems_gpio_clear(47);
+  printf("Toggle GPIO 3 on\n");
+  rtems_gpio_set(3);
 
   return(0);
 }
@@ -170,6 +202,10 @@ int toggle_gpio_off_cmd( int argc, char *argv[])
 {
   printf("Toggle GPIO 22 off\n");
   rtems_gpio_clear(22);
+  printf("Toggle GPIO 47 off\n");
+  rtems_gpio_set(47);
+  printf("Toggle GPIO 3 off\n");
+  rtems_gpio_clear(3);
 
   return(0);
 }
@@ -181,6 +217,10 @@ int release_gpio_cmd( int argc, char *argv[])
 {
   printf("Release GPIO 22 pin\n");
   rtems_gpio_release_pin(22);
+  printf("Release GPIO 47 pin\n");
+  rtems_gpio_release_pin(47);
+  printf("Release GPIO 3 pin\n");
+  rtems_gpio_release_pin(3);
   
   return(0);
 }
