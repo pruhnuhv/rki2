@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <math.h>
 #include <rtems.h>
-#include <dev/spi/spi.h>
 #include "./BMP280.h"
 #include <rtems/libi2c.h>
 #include <rtems/libio.h>
+#include <rtems/bspIo.h>
 
 static rtems_status_code spi_bmp280_write(
   rtems_device_major_number major,
@@ -63,7 +63,7 @@ int spi_bmp280_get_Temperature (
   /* Reset Chip */
   rwargs->count = 1;
   rwargs->offset = BMP280_SOFT_RESET_ADDR;
-  rwargs->buffer = BMP280_SOFT_RESET_CMD;
+  *buf = BMP280_SOFT_RESET_CMD;
   rv = spi_bmp280_write(major, minor, arg);
   printf("Chip Reset Status: 0x%08x \n", rv);
 
@@ -75,9 +75,9 @@ int spi_bmp280_get_Temperature (
   dig_T1_msb = buf[0];
   dig_T1_lsb = buf[1];
   dig_T2_msb = buf[2];
-  dig_T2_msb = buf[3];
+  dig_T2_lsb = buf[3];
   dig_T3_msb = buf[4];
-  dig_T3_msb = buf[5];
+  dig_T3_lsb = buf[5];
 
   dig_T1 = (uint16_t)((((uint16_t)dig_T1_msb) << 8) | (uint16_t)dig_T1_lsb); 
   dig_T2 = (int16_t)((((uint16_t)dig_T2_msb) << 8) | (uint16_t)dig_T2_lsb); 
@@ -123,7 +123,7 @@ int spi_bmp280_get_Temperature (
 
   rwargs->count = 1;
   rwargs->offset = BMP280_CTRL_MEAS_ADDR;
-  rwargs->buffer = (tempreg | 0x03); 
+  *buf = (tempreg | 0x03); 
   rv = spi_bmp280_write(major, minor, arg);
   
   rwargs->count = 1;
@@ -154,6 +154,7 @@ int spi_bmp280_whoami(
   void *arg
 ) 
 {
+  printf("Entered whoami fn \n");
   int rv = 0;
   rtems_libio_rw_args_t *rwargs = arg;
   unsigned char *buf = (unsigned char *)rwargs->buffer;
@@ -161,7 +162,7 @@ int spi_bmp280_whoami(
   rwargs->count = 1;
   rwargs->offset = BMP280_CHIP_ID_ADDR;
   rv = spi_bmp280_read(major, minor, arg);
-  printf("BMP280: i2c_bus_transfer rv = 0x%08x, whoami = 0x%x \n", rv, buf[0]);
+  printf("BMP280: read rv = 0x%08x, whoami = 0x%x \n", rv, buf[0]);
 
   return (rv);
 }
@@ -186,7 +187,6 @@ static rtems_status_code spi_bmp280_write(
   unsigned char cmdbuf[4];
   int ret_cnt = 0;
   int cmd_size;
-
 
   while ( cnt > bytes_sent ) {
     curr_cnt = cnt - bytes_sent;
@@ -278,11 +278,12 @@ static rtems_status_code spi_bmp280_read(
   rtems_libio_rw_args_t *rwargs = arg;
   int cnt = rwargs->count;
   unsigned char *buf = (unsigned char *)rwargs->buffer;
-  unsigned char cmdbuf[2];
+  unsigned char cmdbuf;
   int ret_cnt = 0;
   int cmd_size;
 
-
+  printf("Buf: 0x%x , cnt: %d , offset: 0x%08x\n", *buf, cnt, rwargs->offset);
+  
   /* Start the bus */
   sc = rtems_libi2c_send_start(minor);
 
@@ -306,43 +307,49 @@ static rtems_status_code spi_bmp280_read(
 
   /* Send read command and address. */
 
-  cmdbuf[0] = (rwargs->offset) | (1<<7);
-
+  cmdbuf = (BMP280_CHIP_ID_ADDR) | (1<<7);
+  printf("cmdbuf: 0x%X \n", cmdbuf);
   cmd_size  = 1;
-
-  ret_cnt = rtems_libi2c_write_bytes(minor,cmdbuf,cmd_size);
-
+  ret_cnt = rtems_libi2c_write_bytes(minor, &cmdbuf, cmd_size);
+  printf("Return count in spi_read - write_bytes: %d \n", ret_cnt);   
   if ( ret_cnt < 0 ) {
     return RTEMS_IO_ERROR;
   }
 
   /* Fetch data */
   ret_cnt = rtems_libi2c_read_bytes (minor,buf,cnt);
-
+  printf("BUFFER READ: 0x%x \n", buf[0]);
+  printf("Return count in spi_read - read_bytes: %d \n", ret_cnt);   
   if ( ret_cnt < 0 ) {
     return RTEMS_IO_ERROR;
   }
 
   /* Terminate transfer */
-
+  
+  sc = rtems_libi2c_send_stop(minor);
   if ( sc != RTEMS_SUCCESSFUL ) {
     return sc;
   }
-
+  
   rwargs->bytes_moved = (sc == RTEMS_SUCCESSFUL) ? ret_cnt : 0;
-
-  return sc;
+  
+  printf("Exiting SPI Read, Bytes Moved = %d \n\n", rwargs->bytes_moved);
+  return 0;
 }
 
 
-static int spi_bmp280_ioctl(rtems_device_major_number major,
+static rtems_device_driver spi_bmp280_ioctl(rtems_device_major_number major,
                               rtems_device_minor_number minor,
-                              void* arg,
-                              ioctl_command_t command)
+                              void* arg
+                              )
 {
   int rv = 0;
+  rtems_libio_ioctl_args_t *ioarg = (rtems_libio_ioctl_args_t *) arg;
+  if (!ioarg) {
+    return RTEMS_INVALID_NAME;
+  }
 
-  switch( command )
+  switch( ioarg->command )
   {
     case SPI_BMP280_read_whoami:
       rv = spi_bmp280_whoami(major, minor, arg);
@@ -359,7 +366,7 @@ static int spi_bmp280_ioctl(rtems_device_major_number major,
 
 static rtems_driver_address_table spi_bmp280_rw_ops = {
   .read_entry = spi_bmp280_read,
-  .write_entry = spi_bmp280_write
+  .write_entry = spi_bmp280_write,
   .control_entry = spi_bmp280_ioctl
 };
 
@@ -372,10 +379,11 @@ static rtems_libi2c_drv_t spi_bmp280_rw_drv_t = {
 
 int spi_libi2c_register_bmp280(unsigned spi_bus)
 {
+  printf("Device Registered\n");
   return rtems_libi2c_register_drv(
-           "BMP280",
+           "BMP280-SPI",
            &spi_bmp280_rw_drv_t,
            spi_bus,
-           SPI_BMP280_ADDR
+            0x00
          );
 }

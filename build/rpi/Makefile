@@ -81,6 +81,8 @@ OBJS += benchmarks.o
 OBJS += gpio_cmd.o
 OBJS += gpio_irq_cmd.o
 OBJS += bmp280_cmd.o
+OBJS += bmp280_spi_cmd.o
+OBJS += BMP280-SPI.o
 OBJS += BMP280.o
 
 ##

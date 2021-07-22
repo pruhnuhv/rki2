@@ -1,6 +1,4 @@
-
 #include <rtems.h>
-#include <dev/i2c/i2c.h>
 
 #define BMP280_I2C_ADDR                      0x76
 #define BMP280_I2C_ADDR_SEC                  0x77
@@ -57,6 +55,13 @@ typedef enum
   BMP280_read_Press,
 } BMP280_cmd;
 
+typedef enum
+{
+  SPI_BMP280_read_whoami,
+  SPI_BMP280_read_Temperature,
+  SPI_BMP280_read_Press,
+} SPI_BMP280_cmd;
+int spi_libi2c_register_bmp280(unsigned spi_bus);
 int i2c_dev_register_BMP280(const char* bus_path,
                             const char* dev_path,
                             uint32_t address);
