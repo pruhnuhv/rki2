@@ -59,6 +59,11 @@ int SPI_BMP280_test_cmd(int argc, char* argv[])
 
   printf("Opened BMP 280, Reading Temperature and Pressure...\n");
   
+  /*
+   * Use this function by setting offset to 0xD0 manually in the driver. 
+   * Only used for testing purposes.
+   */
+  /*
   rv = read(fd, buf, 1);
   if (rv < 0)
   {
@@ -67,8 +72,9 @@ int SPI_BMP280_test_cmd(int argc, char* argv[])
   else{
     printf("Whoami: 0x%x \n\n", buf[0]);
   }
+  */
 
-  printf("Entering whoami ioctl function \n");
+  printf("Whoami Function Called \n");
   rv = ioctl(fd, SPI_BMP280_read_whoami, whoami);
   if (rv<0)
   {
@@ -77,7 +83,7 @@ int SPI_BMP280_test_cmd(int argc, char* argv[])
   }
   else
   {
-    printf("Whoami Main Loop Successful\n");
+    printf("Whoami Successful\n");
   }
   
   rv = ioctl(fd, SPI_BMP280_read_Temperature, &Temperature);
@@ -88,7 +94,7 @@ int SPI_BMP280_test_cmd(int argc, char* argv[])
   }
   else
   {
-    printf("Temperature Main Loop = %d\n", Temperature);
+    printf("Temperature = %d\n", Temperature);
   }
 
   rv = close(fd);

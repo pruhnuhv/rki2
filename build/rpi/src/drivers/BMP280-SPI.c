@@ -82,7 +82,11 @@ int spi_bmp280_get_Temperature (
   dig_T1 = (uint16_t)((((uint16_t)dig_T1_msb) << 8) | (uint16_t)dig_T1_lsb); 
   dig_T2 = (int16_t)((((uint16_t)dig_T2_msb) << 8) | (uint16_t)dig_T2_lsb); 
   dig_T3 = (int16_t)((((uint16_t)dig_T3_msb) << 8) | (uint16_t)dig_T3_lsb); 
+  
 
+  /*
+   * These values should be positive integers. A negative value is an error returned. 0 likely means a dead chip or a wrong connection.
+   */
   printf("T1: %d T2: %d T3: %d\n", dig_T1, dig_T2, dig_T3);
 
   /*
@@ -94,7 +98,6 @@ int spi_bmp280_get_Temperature (
   rv = spi_bmp280_read(major, minor, arg);
   temp = buf[0];
   temp &= 0x09;
-  printf("REG STATUS: %d \n", temp);
 
   rwargs->count = 1;
   rwargs->offset = BMP280_CTRL_MEAS_ADDR;
@@ -121,11 +124,15 @@ int spi_bmp280_get_Temperature (
   temp = buf[0];
   uint8_t tempreg = (uint8_t)(temp & ~(0x03));
 
+  /*
+   *  Setting the device to its 'Normal' mode.
+   */
   rwargs->count = 1;
   rwargs->offset = BMP280_CTRL_MEAS_ADDR;
   *buf = (tempreg | 0x03); 
   rv = spi_bmp280_write(major, minor, arg);
   
+
   rwargs->count = 1;
   rwargs->offset = BMP280_CTRL_MEAS_ADDR;
   rv = spi_bmp280_read(major, minor, arg);
@@ -148,13 +155,17 @@ int spi_bmp280_get_Temperature (
   return (rv);
 }
 
+
+/*
+ * This Function should print whoami = 0x58 (The correct device ID)
+ */
+
 int spi_bmp280_whoami(
   rtems_device_major_number major,
   rtems_device_minor_number minor,
   void *arg
 ) 
 {
-  printf("Entered whoami fn \n");
   int rv = 0;
   rtems_libio_rw_args_t *rwargs = arg;
   unsigned char *buf = (unsigned char *)rwargs->buffer;
@@ -282,8 +293,6 @@ static rtems_status_code spi_bmp280_read(
   int ret_cnt = 0;
   int cmd_size;
 
-  printf("Buf: 0x%x , cnt: %d , offset: 0x%08x\n", *buf, cnt, rwargs->offset);
-  
   /* Start the bus */
   sc = rtems_libi2c_send_start(minor);
 
@@ -307,8 +316,8 @@ static rtems_status_code spi_bmp280_read(
 
   /* Send read command and address. */
 
-  cmdbuf = (BMP280_CHIP_ID_ADDR) | (1<<7);
-  printf("cmdbuf: 0x%X \n", cmdbuf);
+  cmdbuf = (rwargs->offset) | (1<<7);
+  printf("Register being read: 0x%X \n", cmdbuf);
   cmd_size  = 1;
   ret_cnt = rtems_libi2c_write_bytes(minor, &cmdbuf, cmd_size);
   printf("Return count in spi_read - write_bytes: %d \n", ret_cnt);   
@@ -334,7 +343,7 @@ static rtems_status_code spi_bmp280_read(
   rwargs->bytes_moved = (sc == RTEMS_SUCCESSFUL) ? ret_cnt : 0;
   
   printf("Exiting SPI Read, Bytes Moved = %d \n\n", rwargs->bytes_moved);
-  return 0;
+  return 1;
 }
 
 
