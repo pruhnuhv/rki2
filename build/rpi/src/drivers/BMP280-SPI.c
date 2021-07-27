@@ -5,6 +5,8 @@
 #include <rtems/libi2c.h>
 #include <rtems/libio.h>
 #include <rtems/bspIo.h>
+#include <stdlib.h>
+#include <assert.h>
 
 static rtems_status_code spi_bmp280_write(
   rtems_device_major_number major,
@@ -34,7 +36,7 @@ static rtems_libi2c_tfr_mode_t tfr_mode = {
 int spi_bmp280_get_Temperature (
   rtems_device_major_number major,
   rtems_device_minor_number minor,
-  void *arg
+  uint32_t* data
 )
 {
   int rv = 0;
@@ -57,21 +59,23 @@ int spi_bmp280_get_Temperature (
   uint32_t t_fine;
   uint8_t temp;
 
-  rtems_libio_rw_args_t *rwargs = arg; 
+  rtems_libio_rw_args_t *rwargs; 
+  rwargs = malloc(sizeof(rtems_libio_rw_args_t)); 
+  
   unsigned char *buf = (unsigned char *)rwargs->buffer;
   
   /* Reset Chip */
   rwargs->count = 1;
   rwargs->offset = BMP280_SOFT_RESET_ADDR;
   *buf = BMP280_SOFT_RESET_CMD;
-  rv = spi_bmp280_write(major, minor, arg);
+  rv = spi_bmp280_write(major, minor, rwargs);
   printf("Chip Reset Status: 0x%08x \n", rv);
 
   
   /* Read The Calibration/Compensation Parameters */
   rwargs->count = 6;
   rwargs->offset = BMP280_DIG_T1_LSB_ADDR;
-  rv = spi_bmp280_read(major, minor, arg); 
+  rv = spi_bmp280_read(major, minor, rwargs); 
   dig_T1_msb = buf[0];
   dig_T1_lsb = buf[1];
   dig_T2_msb = buf[2];
@@ -95,13 +99,13 @@ int spi_bmp280_get_Temperature (
 
   rwargs->count = 1;
   rwargs->offset = BMP280_STATUS_ADDR;
-  rv = spi_bmp280_read(major, minor, arg);
+  rv = spi_bmp280_read(major, minor, rwargs);
   temp = buf[0];
   temp &= 0x09;
 
   rwargs->count = 1;
   rwargs->offset = BMP280_CTRL_MEAS_ADDR;
-  rv = spi_bmp280_read(major, minor, arg);
+  rv = spi_bmp280_read(major, minor, rwargs);
   temp = buf[0];
   temp &= 0x03;
   printf("Mode: [%02X] \n", temp);
@@ -120,7 +124,7 @@ int spi_bmp280_get_Temperature (
 
   rwargs->count = 1;
   rwargs->offset = BMP280_STATUS_ADDR;
-  rv = spi_bmp280_read(major, minor, arg);
+  rv = spi_bmp280_read(major, minor, rwargs);
   temp = buf[0];
   uint8_t tempreg = (uint8_t)(temp & ~(0x03));
 
@@ -130,15 +134,15 @@ int spi_bmp280_get_Temperature (
   rwargs->count = 1;
   rwargs->offset = BMP280_CTRL_MEAS_ADDR;
   *buf = (tempreg | 0x03); 
-  rv = spi_bmp280_write(major, minor, arg);
+  rv = spi_bmp280_write(major, minor, rwargs);
   
 
   rwargs->count = 1;
   rwargs->offset = BMP280_CTRL_MEAS_ADDR;
-  rv = spi_bmp280_read(major, minor, arg);
+  rv = spi_bmp280_read(major, minor, rwargs);
   temp = buf[0];
   temp &= 0x03;
-  printf("Mode: [%02X] \n", temp);
+  printf("Mode Changed to: [%02X] \n", temp);
   switch (temp) {
     case BMP280_SLEEP_MODE:
       printf("SLEEP\n");
@@ -152,7 +156,8 @@ int spi_bmp280_get_Temperature (
   }
   temp = 0;
 
-  return (rv);
+  free(rwargs);
+  return rv;
 }
 
 
@@ -163,19 +168,22 @@ int spi_bmp280_get_Temperature (
 int spi_bmp280_whoami(
   rtems_device_major_number major,
   rtems_device_minor_number minor,
-  void *arg
+  uint32_t* data
 ) 
 {
   int rv = 0;
-  rtems_libio_rw_args_t *rwargs = arg;
+  rtems_libio_rw_args_t *rwargs;
+  rwargs = malloc(sizeof(rtems_libio_rw_args_t)); 
   unsigned char *buf = (unsigned char *)rwargs->buffer;
   
   rwargs->count = 1;
   rwargs->offset = BMP280_CHIP_ID_ADDR;
-  rv = spi_bmp280_read(major, minor, arg);
-  printf("BMP280: read rv = 0x%08x, whoami = 0x%x \n", rv, buf[0]);
-
-  return (rv);
+  rv = spi_bmp280_read(major, minor, rwargs);
+  *data = buf[0];
+  printf("BMP280: read rv = %d, whoami = 0x%x \n", rv, buf[0]);
+ 
+  free(rwargs);
+  return rv;
 }
 
 
@@ -315,26 +323,20 @@ static rtems_status_code spi_bmp280_read(
   }
 
   /* Send read command and address. */
-
   cmdbuf = (rwargs->offset) | (1<<7);
-  printf("Register being read: 0x%X \n", cmdbuf);
   cmd_size  = 1;
   ret_cnt = rtems_libi2c_write_bytes(minor, &cmdbuf, cmd_size);
-  printf("Return count in spi_read - write_bytes: %d \n", ret_cnt);   
   if ( ret_cnt < 0 ) {
     return RTEMS_IO_ERROR;
   }
 
   /* Fetch data */
   ret_cnt = rtems_libi2c_read_bytes (minor,buf,cnt);
-  printf("BUFFER READ: 0x%x \n", buf[0]);
-  printf("Return count in spi_read - read_bytes: %d \n", ret_cnt);   
   if ( ret_cnt < 0 ) {
     return RTEMS_IO_ERROR;
   }
 
   /* Terminate transfer */
-  
   sc = rtems_libi2c_send_stop(minor);
   if ( sc != RTEMS_SUCCESSFUL ) {
     return sc;
@@ -342,7 +344,6 @@ static rtems_status_code spi_bmp280_read(
   
   rwargs->bytes_moved = (sc == RTEMS_SUCCESSFUL) ? ret_cnt : 0;
   
-  printf("Exiting SPI Read, Bytes Moved = %d \n\n", rwargs->bytes_moved);
   return 1;
 }
 
@@ -354,6 +355,8 @@ static rtems_device_driver spi_bmp280_ioctl(rtems_device_major_number major,
 {
   int rv = 0;
   rtems_libio_ioctl_args_t *ioarg = (rtems_libio_ioctl_args_t *) arg;
+  uint32_t data = 0;
+  
   if (!ioarg) {
     return RTEMS_INVALID_NAME;
   }
@@ -361,15 +364,16 @@ static rtems_device_driver spi_bmp280_ioctl(rtems_device_major_number major,
   switch( ioarg->command )
   {
     case SPI_BMP280_read_whoami:
-      rv = spi_bmp280_whoami(major, minor, arg);
-      break;
+      rv = spi_bmp280_whoami(major, minor, &data);
+      break; 
     case SPI_BMP280_read_Temperature:
-      rv = spi_bmp280_get_Temperature(major, minor, arg);
+      rv = spi_bmp280_get_Temperature(major, minor, &data);
       break;
     case SPI_BMP280_read_Press:
       break;
   }
-  return rv;  
+  
+  return 0;  
 }
 
 

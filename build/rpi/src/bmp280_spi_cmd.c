@@ -23,8 +23,6 @@ int SPI_BMP280_test_cmd(int argc, char* argv[])
   int spi_bus;
   int32_t Temperature = 0;
   uint8_t whoami = 0;
-  char buf[32];
-  buf[0] = 0x10;
   
   delay_sec(2);
 
@@ -36,7 +34,7 @@ int SPI_BMP280_test_cmd(int argc, char* argv[])
   }
   else
   {
-    printf("rpi_spi_init returned %d\n",rv);
+    printf("\n\nSPI Initialized\n");
   }
 
   rv = spi_libi2c_register_bmp280(spi_bus);
@@ -46,7 +44,7 @@ int SPI_BMP280_test_cmd(int argc, char* argv[])
   }
   else
   {
-    printf("spi_libi2c_register returned %d\n", rv);
+    printf("SPI-libi2c registered\n");
   }
   
 
@@ -57,39 +55,25 @@ int SPI_BMP280_test_cmd(int argc, char* argv[])
     return(fd);
   }
 
-  printf("Opened BMP 280, Reading Temperature and Pressure...\n");
-  
-  /*
-   * Use this function by setting offset to 0xD0 manually in the driver. 
-   * Only used for testing purposes.
-   */
-  /*
-  rv = read(fd, buf, 1);
+  printf("Opened BMP 280, Reading Temperature and Pressure...\n\n");
+ 
+  printf("\n\n\nWHOAMI:\n"); 
+  rv = ioctl(fd, SPI_BMP280_read_whoami, &whoami);
   if (rv < 0)
   {
-    printf("Read op failed\n");
-  }
-  else{
-    printf("Whoami: 0x%x \n\n", buf[0]);
-  }
-  */
-
-  printf("Whoami Function Called \n");
-  rv = ioctl(fd, SPI_BMP280_read_whoami, whoami);
-  if (rv<0)
-  {
-    printf("BMP280 init failed\n");
+    printf("BMP280 init failed, rv = %d\n", rv);
     return(rv);
   }
   else
   {
-    printf("Whoami Successful\n");
+    printf("Whoami Successful, Device ID: 0x%X\n", whoami);
   }
   
+  printf("\n\n\nTEMPERATURE:\n");
   rv = ioctl(fd, SPI_BMP280_read_Temperature, &Temperature);
-  if (rv<0)
+  if (rv < 0)
   {
-    printf("BMP280 init failed\n");
+    printf("BMP280 init failed, rv = %d\n", rv);
     return(rv);
   }
   else
