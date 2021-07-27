@@ -76,12 +76,12 @@ int spi_bmp280_get_Temperature (
   rwargs->count = 6;
   rwargs->offset = BMP280_DIG_T1_LSB_ADDR;
   rv = spi_bmp280_read(major, minor, rwargs); 
-  dig_T1_msb = buf[0];
-  dig_T1_lsb = buf[1];
-  dig_T2_msb = buf[2];
-  dig_T2_lsb = buf[3];
-  dig_T3_msb = buf[4];
-  dig_T3_lsb = buf[5];
+  dig_T1_lsb = buf[0];
+  dig_T1_msb = buf[1];
+  dig_T2_lsb = buf[2];
+  dig_T2_msb = buf[3];
+  dig_T3_lsb = buf[4];
+  dig_T3_msb = buf[5];
 
   dig_T1 = (uint16_t)((((uint16_t)dig_T1_msb) << 8) | (uint16_t)dig_T1_lsb); 
   dig_T2 = (int16_t)((((uint16_t)dig_T2_msb) << 8) | (uint16_t)dig_T2_lsb); 
@@ -155,6 +155,35 @@ int spi_bmp280_get_Temperature (
       break;
   }
   temp = 0;
+
+  
+  /*
+   * Main Function to read Temperature starts here
+   *
+   */
+
+  /* Read The Temperature */   
+  rwargs->count = 3;
+  rwargs->offset = BMP280_DIG_T1_MSB_ADDR;
+  rv = spi_bmp280_read(major, minor, rwargs); 
+  Temp_msb = buf[0]; 
+  Temp_lsb = buf[1]; 
+  Temp_xlsb = buf[2]; 
+ 
+ 
+  T_raw = (int32_t)((((uint32_t)Temp_msb) << 12) | (((uint32_t)Temp_lsb) << 4) | (((uint32_t)Temp_xlsb) >> 4));
+  printf("Raw Temperature: %d\n", T_raw);
+ 
+
+  /* Calibrate The Temperature According to the Datasheet */
+  var1  = ((((T_raw >> 3) - ((int32_t)dig_T1 << 1))) * ((int32_t)dig_T2)) >> 11;
+  var2  = (((((T_raw >> 4) - ((int32_t)dig_T1)) * ((T_raw >> 4) - ((int32_t)dig_T1))) >> 12) * ((int32_t)dig_T3)) >> 14;
+  t_fine = var1 + var2; 
+  Temp = (t_fine * 5 + 128) >> 8;
+
+  printf("Temperature : %d \n", Temp);
+  printf("\n");
+  //delay_sec(3);
 
   free(rwargs);
   return rv;
@@ -353,7 +382,7 @@ static rtems_device_driver spi_bmp280_ioctl(rtems_device_major_number major,
                               void* arg
                               )
 {
-  int rv = 0;
+  int rv = -1;
   rtems_libio_ioctl_args_t *ioarg = (rtems_libio_ioctl_args_t *) arg;
   uint32_t data = 0;
   
@@ -364,16 +393,16 @@ static rtems_device_driver spi_bmp280_ioctl(rtems_device_major_number major,
   switch( ioarg->command )
   {
     case SPI_BMP280_read_whoami:
-      rv = spi_bmp280_whoami(major, minor, &data);
+      rv += spi_bmp280_whoami(major, minor, &data);
       break; 
     case SPI_BMP280_read_Temperature:
-      rv = spi_bmp280_get_Temperature(major, minor, &data);
+      rv += spi_bmp280_get_Temperature(major, minor, &data);
       break;
     case SPI_BMP280_read_Press:
       break;
   }
   
-  return 0;  
+  return rv;  
 }
 
 
