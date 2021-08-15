@@ -260,20 +260,6 @@ static rtems_status_code spi_bmp280_write(
       return sc;
     }
 
-    /* Start the bus */
-    sc = rtems_libi2c_send_start(minor);
-
-    if ( sc != RTEMS_SUCCESSFUL ) {
-      return sc;
-    }
-
-    /* Address device */
-    sc = rtems_libi2c_send_addr(minor,TRUE);
-
-    if ( sc != RTEMS_SUCCESSFUL ) {
-      return sc;
-    }
-
     /* Send write instruction and address. */
 
     cmdbuf[0] = (rwargs->offset) & ~(1<<7);
